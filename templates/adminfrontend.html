@@ -1,0 +1,413 @@
+{% load static %}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard - Samudra Setu Gujarat</title>
+
+    <!-- TailwindCSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            ocean: {
+              50: '#f0f8ff',
+              100: '#e0f2ff',
+              200: '#bae6fd',
+              300: '#7dd3fc',
+              400: '#38bdf8',
+              500: '#0ea5e9',
+              600: '#0284c7',
+              700: '#0369a1',
+              800: '#075985',
+              900: '#0c4a6e',
+            }
+          },
+          boxShadow: {
+            glow: '0 0 0 2px rgba(255,255,255,0.06), 0 10px 30px rgba(2,132,199,0.35)'
+          },
+          backgroundImage: {
+            'ocean-grad': 'radial-gradient(1200px 600px at 10% 0%, rgba(56,189,248,0.25), transparent 50%), radial-gradient(900px 500px at 90% -10%, rgba(14,165,233,0.25), transparent 55%), linear-gradient(180deg, #031A2B 0%, #061E30 30%, #07263C 100%)',
+            'grid': 'linear-gradient(to right, rgba(255,255,255,0.06) 1px, transparent 1px), linear-gradient(to bottom, rgba(255,255,255,0.06) 1px, transparent 1px)'
+          }
+        }
+      }
+    };
+  </script>
+
+<style>
+    /* Subtle animated shine for buttons */
+    .btn-shine { position: relative; overflow: hidden; }
+    .btn-shine::after {
+      content: ""; position: absolute; inset: -150% -50% auto auto; width: 40%; height: 300%;
+      background: linear-gradient(120deg, rgba(255,255,255,0.0) 0%, rgba(255,255,255,0.35) 40%, rgba(255,255,255,0.0) 80%);
+      transform: rotate(25deg); opacity: 0; transition: opacity .3s ease; pointer-events: none;
+    }
+    .btn-shine:hover::after { opacity: 1; animation: sweep 1s ease forwards; }
+    @keyframes sweep { to { transform: translateX(-220%) rotate(25deg); } }
+
+    /* Fancy underline on nav links */
+    .link-fancy { position: relative; }
+    .link-fancy::after {
+      content: ""; position: absolute; left: 0; bottom: -6px; height: 2px; width: 100%;
+      background: linear-gradient(90deg, #38bdf8, #0ea5e9, #0369a1);
+      transform: scaleX(0); transform-origin: left; transition: transform .3s ease;
+    }
+    .link-fancy:hover::after { transform: scaleX(1); }
+
+    /* Card hover lift */
+    .card { transition: transform .35s ease, box-shadow .35s ease, border-color .35s ease; }
+    .card:hover { transform: translateY(-6px); box-shadow: 0 20px 40px rgba(2,132,199,.25); }
+
+    /* Background grid overlay */
+    .grid-overlay { background-size: 40px 40px, 40px 40px; mask-image: radial-gradient(circle at center, black 60%, transparent 100%); opacity:.25; }
+</style>
+
+</head>
+    <body class="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white">
+    <!-- Decorative background grid -->
+  <div class="grid-overlay bg-grid absolute inset-0 pointer-events-none"></div>
+
+    <!-- Navbar -->
+  <header class="relative z-40">
+    <nav class="mx-auto max-w-7xl px-4 py-5 flex items-center justify-between">
+      <a href="{% url 'index' %}" class="flex items-center gap-3 group">
+        <img src="{% static 'images/White.png' %}"
+            alt="SamudraSetu Logo" 
+            class="w-auto h-20 object-contain">
+      </a>
+    </nav>
+  </header>
+
+    <!-- Main Content -->
+    <main class="max-w-7xl mx-auto px-4 py-8">
+        <div class="grid lg:grid-cols-3 gap-8">
+            <!-- Alert Creation Form -->
+            <div class="lg:col-span-2">
+                <div class="bg-slate-800/50 backdrop-blur border border-white/10 rounded-2xl p-6">
+                    <h2 class="text-xl font-bold mb-6 flex items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-6 h-6 text-red-400">
+                            <path d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" />
+                        </svg>
+                        Send Alert to Existing Subscribers
+                    </h2>
+                    
+                    <!-- Current Subscribers Info -->
+                    <div class="mb-6 p-4 bg-blue-500/20 border border-blue-400/30 rounded-lg">
+                        <h3 class="font-semibold text-blue-300 mb-2">📱 Current SMS Subscribers</h3>
+                        <div id="subscribers-list" class="text-blue-200 text-sm">
+                            Loading subscribers...
+                        </div>
+                    </div>
+                    
+                    <form id="create-alert-form" class="space-y-6">
+                        <div>
+                            <label for="alert_title" class="block text-sm font-medium mb-2">Alert Title *</label>
+                            <input type="text" 
+                                   id="alert_title" 
+                                   class="w-full px-4 py-3 bg-slate-700/50 border border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-ocean-400 focus:border-transparent" 
+                                   placeholder="e.g., High Tide Warning - Dwarka Coast" 
+                                   required>
+                        </div>
+                        
+                        <div>
+                            <label for="alert_description" class="block text-sm font-medium mb-2">Alert Description *</label>
+                            <textarea id="alert_description" 
+                                      rows="4" 
+                                      class="w-full px-4 py-3 bg-slate-700/50 border border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-ocean-400 focus:border-transparent" 
+                                      placeholder="Describe the emergency situation, location, and safety instructions..." 
+                                      required></textarea>
+                        </div>
+                        
+                        <div>
+                            <label for="alert_severity" class="block text-sm font-medium mb-2">Severity Level *</label>
+                            <select id="alert_severity" 
+                                    class="w-full px-4 py-3 bg-slate-700/50 border border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-ocean-400 focus:border-transparent" 
+                                    required>
+                                <option value="low">🟢 Low - Informational</option>
+                                <option value="medium" selected>�� Medium - Caution</option>
+                                <option value="high">🟠 High - Warning</option>
+                                <option value="critical">🔴 Critical - Emergency</option>
+                            </select>
+                        </div>
+                        
+                        <button type="submit" 
+                                class="w-full bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white font-semibold py-3 px-6 rounded-lg transition-all duration-200 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-red-400 focus:ring-offset-2 focus:ring-offset-slate-800">
+                            🚨 Send Alert to All Subscribers
+                        </button>
+                    </form>
+                    
+                    <!-- Response Message -->
+                    <div id="alert-response" class="mt-6"></div>
+                </div>
+            </div>
+
+            <!-- Dashboard Stats -->
+            <div class="space-y-6">
+                <!-- Quick Stats -->
+                <div class="bg-slate-800/50 backdrop-blur border border-white/10 rounded-2xl p-6">
+                    <h3 class="text-lg font-bold mb-4">System Status</h3>
+                    <div class="space-y-3">
+                        <div class="flex items-center justify-between">
+                            <span class="text-slate-300">Active Alerts:</span>
+                            <span id="active-alerts-count" class="font-bold text-ocean-400">-</span>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <span class="text-slate-300">SMS Subscribers:</span>
+                            <span id="sms-subscribers-count" class="font-bold text-green-400">-</span>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <span class="text-slate-300">Last Alert:</span>
+                            <span id="last-alert-time" class="font-bold text-yellow-400">-</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Recent Alerts -->
+                <div class="bg-slate-800/50 backdrop-blur border border-white/10 rounded-2xl p-6">
+                    <h3 class="text-lg font-bold mb-4">Recent Alerts</h3>
+                    <div id="recent-alerts" class="space-y-3">
+                        <p class="text-slate-400 text-sm">Loading recent alerts...</p>
+                    </div>
+                </div>
+
+                <!-- Quick Actions -->
+                <div class="bg-slate-800/50 backdrop-blur border border-white/10 rounded-2xl p-6">
+                    <h3 class="text-lg font-bold mb-4">Quick Actions</h3>
+                    <div class="space-y-3">
+                        <button onclick="refreshStats()" class="w-full px-4 py-2 bg-ocean-600 hover:bg-ocean-700 rounded-lg transition-colors text-sm">
+                            🔄 Refresh Stats
+                        </button>
+                        <button onclick="testNotification()" class="w-full px-4 py-2 bg-green-600 hover:bg-green-700 rounded-lg transition-colors text-sm">
+                            📱 Test SMS to All
+                        </button>
+                        <button onclick="addTestSubscriber()" class="w-full px-4 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg transition-colors text-sm">
+                            ➕ Add Test Number
+                        </button>
+                        <a href="/admin/" class="block w-full px-4 py-2 bg-slate-600 hover:bg-slate-700 rounded-lg transition-colors text-sm text-center">
+                            ⚙️ Django Admin
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer>
+        <div class="text-center text-xs text-slate-500 pb-8">©️ 2025 SamudraSetu Safety Gujarat</div>
+    </footer>
+
+    <script>
+        // Load subscribers list
+        async function loadSubscribers() {
+            try {
+                const response = await fetch('/api/subscribers/');
+                const data = await response.json();
+                
+                if (data.success) {
+                    const subscribersDiv = document.getElementById('subscribers-list');
+                    if (data.subscribers.length > 0) {
+                        subscribersDiv.innerHTML = data.subscribers.map(sub => 
+                            `<div class="flex items-center justify-between py-1">
+                                <span>�� ${sub.phone_number}</span>
+                                <span class="text-xs ${sub.is_active ? 'text-green-400' : 'text-red-400'}">
+                                    ${sub.is_active ? 'Active' : 'Inactive'}
+                                </span>
+                            </div>`
+                        ).join('');
+                    } else {
+                        subscribersDiv.innerHTML = '<span class="text-blue-300">No subscribers found</span>';
+                    }
+                }
+            } catch (error) {
+                console.error('Failed to load subscribers:', error);
+            }
+        }
+
+        // Form submission handler
+        document.getElementById('create-alert-form').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const title = document.getElementById('alert_title').value;
+            const description = document.getElementById('alert_description').value;
+            const severity = document.getElementById('alert_severity').value;
+            const responseDiv = document.getElementById('alert-response');
+            const submitBtn = this.querySelector('button[type="submit"]');
+            
+            // Disable button and show loading
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '⏳ Sending Alert...';
+            
+            try {
+                const response = await fetch('/api/create-alert/', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ title, description, severity })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    responseDiv.innerHTML = `
+                        <div class="p-4 bg-green-500/20 border border-green-400/30 rounded-lg">
+                            <div class="flex items-center gap-2">
+                                <svg class="w-5 h-5 text-green-400" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                                </svg>
+                                <span class="text-green-400 font-medium">${data.message}</span>
+                            </div>
+                            <p class="text-green-300 text-sm mt-1">Alert ID: ${data.alert_id}</p>
+                            <p class="text-green-300 text-sm mt-1">SMS sent to ${data.subscribers_notified} subscribers</p>
+                        </div>
+                    `;
+                    
+                    // Reset form
+                    document.getElementById('create-alert-form').reset();
+                    
+                    // Refresh stats
+                    refreshStats();
+                    
+                } else {
+                    responseDiv.innerHTML = `
+                        <div class="p-4 bg-red-500/20 border border-red-400/30 rounded-lg">
+                            <div class="flex items-center gap-2">
+                                <svg class="w-5 h-5 text-red-400" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>
+                                </svg>
+                                <span class="text-red-400 font-medium">${data.error}</span>
+                            </div>
+                        </div>
+                    `;
+                }
+                
+            } catch (error) {
+                responseDiv.innerHTML = `
+                    <div class="p-4 bg-red-500/20 border border-red-400/30 rounded-lg">
+                        <div class="flex items-center gap-2">
+                            <svg class="w-5 h-5 text-red-400" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>
+                            </svg>
+                            <span class="text-red-400 font-medium">Network error. Please try again.</span>
+                        </div>
+                    </div>
+                `;
+            } finally {
+                // Re-enable button
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '🚨 Send Alert to All Subscribers';
+            }
+        });
+
+        // Refresh dashboard stats
+        async function refreshStats() {
+            try {
+                // Get active alerts count
+                const alertsResponse = await fetch('/api/alerts/');
+                const alertsData = await alertsResponse.json();
+                
+                document.getElementById('active-alerts-count').textContent = alertsData.alerts.length;
+                
+                // Update recent alerts
+                const recentAlertsDiv = document.getElementById('recent-alerts');
+                if (alertsData.alerts.length > 0) {
+                    const lastAlert = alertsData.alerts[0];
+                    document.getElementById('last-alert-time').textContent = lastAlert.time_ago;
+                    
+                    recentAlertsDiv.innerHTML = alertsData.alerts.slice(0, 3).map(alert => `
+                        <div class="p-3 bg-slate-700/30 rounded-lg border-l-4 border-${getSeverityColor(alert.severity)}-500">
+                            <div class="font-medium text-sm">${alert.title}</div>
+                            <div class="text-xs text-slate-400 mt-1">${alert.time_ago}</div>
+                        </div>
+                    `).join('');
+                } else {
+                    document.getElementById('last-alert-time').textContent = 'None';
+                    recentAlertsDiv.innerHTML = '<p class="text-slate-400 text-sm">No active alerts</p>';
+                }
+                
+                // Load subscribers count
+                const subscribersResponse = await fetch('/api/subscribers/');
+                const subscribersData = await subscribersResponse.json();
+                if (subscribersData.success) {
+                    document.getElementById('sms-subscribers-count').textContent = subscribersData.subscribers.length;
+                }
+                
+            } catch (error) {
+                console.error('Failed to refresh stats:', error);
+            }
+        }
+
+        // Get severity color
+        function getSeverityColor(severity) {
+            const colors = {
+                'low': 'green',
+                'medium': 'yellow',
+                'high': 'orange',
+                'critical': 'red'
+            };
+            return colors[severity] || 'gray';
+        }
+
+        // Test notification function
+        async function testNotification() {
+            try {
+                const response = await fetch('/api/create-alert/', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        title: 'Test Alert - Setu Safety System',
+                        description: 'This is a test alert to verify the SMS notification system is working properly. Please ignore this message.',
+                        severity: 'low'
+                    })
+                });
+                
+                const data = await response.json();
+                if (data.success) {
+                    alert(`Test alert created successfully!\n\nSMS sent to ${data.subscribers_notified} subscribers:\n- ${data.subscribers_notified > 0 ? 'Check your phone for the test message' : 'No active subscribers found'}`);
+                } else {
+                    alert('Test failed: ' + data.error);
+                }
+            } catch (error) {
+                alert('Test failed: ' + error.message);
+            }
+        }
+
+        // Add test subscriber
+        async function addTestSubscriber() {
+            const phone = prompt('Enter a test phone number (e.g., 9876543210):');
+            if (phone && phone.trim()) {
+                try {
+                    const response = await fetch('/api/subscribe-sms/', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ phone_number: phone.trim() })
+                    });
+                    
+                    const data = await response.json();
+                    if (data.success) {
+                        alert('Test subscriber added successfully!');
+                        loadSubscribers();
+                        refreshStats();
+                    } else {
+                        alert('Failed to add subscriber: ' + data.error);
+                    }
+                } catch (error) {
+                    alert('Error: ' + error.message);
+                }
+            }
+        }
+
+        // Load initial data
+        document.addEventListener('DOMContentLoaded', function() {
+            loadSubscribers();
+            refreshStats();
+        });
+
+        // Auto-refresh stats every 30 seconds
+        setInterval(refreshStats, 30000);
+    </script>
+</body>
+</html>

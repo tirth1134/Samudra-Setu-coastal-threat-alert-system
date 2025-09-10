@@ -1,0 +1,407 @@
+{% load static %}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Samudra Setu Gujarat — Stay Safe on the Shore</title>
+  <meta name="description" content="Real-time flood alerts, safe place finder, fishery advisories, and pollution reporting for Gujarat's coastline." />
+  
+  <!-- TailwindCSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            ocean: {
+              50: '#f0f8ff',
+              100: '#e0f2ff',
+              200: '#bae6fd',
+              300: '#7dd3fc',
+              400: '#38bdf8',
+              500: '#0ea5e9',
+              600: '#0284c7',
+              700: '#0369a1',
+              800: '#075985',
+              900: '#0c4a6e',
+            }
+          },
+          boxShadow: {
+            glow: '0 0 0 2px rgba(255,255,255,0.06), 0 10px 30px rgba(2,132,199,0.35)'
+          },
+          backgroundImage: {
+            'ocean-grad': 'radial-gradient(1200px 600px at 10% 0%, rgba(56,189,248,0.25), transparent 50%), radial-gradient(900px 500px at 90% -10%, rgba(14,165,233,0.25), transparent 55%), linear-gradient(180deg, #031A2B 0%, #061E30 30%, #07263C 100%)',
+            'grid': 'linear-gradient(to right, rgba(255,255,255,0.06) 1px, transparent 1px), linear-gradient(to bottom, rgba(255,255,255,0.06) 1px, transparent 1px)'
+          }
+        }
+      }
+    };
+  </script>
+
+  <style>
+    /* Subtle animated shine for buttons */
+    .btn-shine { position: relative; overflow: hidden; }
+    .btn-shine::after {
+      content: ""; position: absolute; inset: -150% -50% auto auto; width: 40%; height: 300%;
+      background: linear-gradient(120deg, rgba(255,255,255,0.0) 0%, rgba(255,255,255,0.35) 40%, rgba(255,255,255,0.0) 80%);
+      transform: rotate(25deg); opacity: 0; transition: opacity .3s ease; pointer-events: none;
+    }
+    .btn-shine:hover::after { opacity: 1; animation: sweep 1s ease forwards; }
+    @keyframes sweep { to { transform: translateX(-220%) rotate(25deg); } }
+
+    /* Fancy underline on nav links */
+    .link-fancy { position: relative; }
+    .link-fancy::after {
+      content: ""; position: absolute; left: 0; bottom: -6px; height: 2px; width: 100%;
+      background: linear-gradient(90deg, #38bdf8, #0ea5e9, #0369a1);
+      transform: scaleX(0); transform-origin: left; transition: transform .3s ease;
+    }
+    .link-fancy:hover::after { transform: scaleX(1); }
+
+    /* Card hover lift */
+    .card { transition: transform .35s ease, box-shadow .35s ease, border-color .35s ease; }
+    .card:hover { transform: translateY(-6px); box-shadow: 0 20px 40px rgba(2,132,199,.25); }
+
+    /* Background grid overlay */
+    .grid-overlay { background-size: 40px 40px, 40px 40px; mask-image: radial-gradient(circle at center, black 60%, transparent 100%); opacity:.25; }
+  </style>
+</head>
+<body class="min-h-screen text-slate-100 bg-ocean-grad relative">
+  <!-- Decorative background grid -->
+  <div class="grid-overlay bg-grid absolute inset-0 pointer-events-none"></div>
+
+  <!-- Top Emergency Bar (Dynamic) -->
+<div class="sticky top-0 z-50 backdrop-blur bg-slate-900/50 border-b border-white/10">
+  <div class="mx-auto max-w-7xl px-4 py-2 flex items-center justify-between">
+    <div class="flex items-center gap-2 text-sm">
+      <span class="relative flex h-3 w-3">
+        <span class="animate-ping absolute inline-flex h-full w-full rounded-full 
+          {% if latest_alert %} bg-red-400 {% else %} bg-green-400 {% endif %} opacity-75"></span>
+        <span class="relative inline-flex rounded-full h-3 w-3 
+          {% if latest_alert %} bg-red-500 {% else %} bg-green-500 {% endif %}"></span>
+      </span>
+      <span class="font-medium">Live setu Status:</span>
+
+      {% if latest_alert %}
+        <span class="px-2 py-0.5 rounded-full bg-red-500/20 border border-red-400/40 text-red-200 text-xs">
+          🚨 {{ latest_alert.title }} ({{ latest_alert.severity|upper }}) — {{ latest_alert.description }}
+        </span>
+      {% else %}
+        <span class="px-2 py-0.5 rounded-full bg-green-500/20 border border-green-400/40 text-green-200 text-xs">
+          ✅ No Active Flood Warnings
+        </span>
+      {% endif %}
+    </div>
+    <a href="{% url 'alerts' %}" class="text-xs link-fancy">See details →</a>
+  </div>
+</div>
+
+
+  <!-- Navbar -->
+  <header class="relative z-40">
+    <nav class="mx-auto max-w-7xl px-4 py-5 flex items-center justify-between">
+      <a href="{% url 'index' %}" class="flex items-center gap-3 group">
+        <img src="{% static 'images/White.png' %}"
+            alt="SamudraSetu Logo" 
+            class="w-auto h-20 object-contain">
+      </a>
+
+      <button id="menuBtn" class="md:hidden inline-flex items-center justify-center rounded-xl border border-white/10 px-3 py-2 hover:bg-white/5">
+        <span class="sr-only">Open menu</span>
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
+      </button>
+
+      <ul id="menu" class="hidden md:flex items-center gap-8 text-sm">
+        <li><a class="link-fancy hover:text-whi     te/90" href="{% url 'alerts' %}">Alerts</a></li>
+        <li><a class="link-fancy hover:text-white/90" href="{% url 'safeplaces' %}">Safe Places</a></li>
+        <li><a class="link-fancy hover:text-white/90" href="{% url 'fisheries' %}">Fisheries</a></li>
+        <li><a class="link-fancy hover:text-white/90" href="{% url 'pollution' %}">Report Pollution</a></li>
+      </ul>
+
+      <div class="hidden md:flex items-center gap-3">
+        <a href="#subscribe" class="btn-shine inline-flex items-center gap-2 rounded-xl bg-white/10 hover:bg-white/15 px-4 py-2 border border-white/15 shadow-glow transition">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-5 h-5"><path d="M2.25 6.75A2.25 2.25 0 0 1 4.5 4.5h15a2.25 2.25 0 0 1 2.25 2.25v10.5A2.25 2.25 0 0 1 19.5 19.5h-15A2.25 2.25 0 0 1 2.25 17.25V6.75Zm1.5 0 8.25 5.25L20.25 6.75m-16.5 9.75 4.87-3.105M20.25 16.5l-4.87-3.105"/></svg>
+          <span class="font-semibold">Get SMS Alerts</span>
+        </a>
+      </div>
+    </nav>
+
+    <!-- Mobile menu -->
+    <div id="mobileMenu" class="md:hidden hidden mx-4 mb-4 rounded-2xl border border-white/10 bg-white/5 backdrop-blur p-4">
+      <ul class="space-y-3">
+        <li><a class="block link-fancy py-2" href="{% url 'alerts' %}">Alerts</a></li>
+        <li><a class="block link-fancy py-2" href="{% url 'safeplaces' %}">Safe Places</a></li>
+        <li><a class="block link-fancy py-2" href="{% url 'fisheries' %}">Fisheries</a></li>
+        <li><a class="block link-fancy py-2" href="{% url 'pollution' %}">Report Pollution</a></li>
+      </ul>
+    </div>
+  </header>
+
+  <!-- Hero -->
+  <section class="relative">
+    <div class="mx-auto max-w-7xl px-4 pt-10 pb-24">
+      <div class="grid md:grid-cols-2 gap-10 items-center">
+        <div>
+          <h1 class="text-4xl md:text-6xl font-black leading-tight tracking-tight">
+            Samudra Setu for <span class="bg-gradient-to-r from-ocean-300 via-ocean-400 to-ocean-200 bg-clip-text text-transparent">Gujarat</span>,
+            in real time.
+          </h1>
+          <p class="mt-5 text-slate-300 text-lg md:text-xl max-w-xl">
+            Get instant flood alerts, find nearby safe places, check fishery advisories, and report setu pollution — all in one place.
+          </p>
+          <div class="mt-8 flex flex-wrap gap-4">
+            <a href="{% url 'alerts' %}" class="btn-shine inline-flex items-center gap-2 rounded-2xl bg-gradient-to-br from-ocean-400 to-ocean-600 hover:from-ocean-300 hover:to-ocean-500 px-6 py-3 font-semibold shadow-glow">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5L21 12l-7.5 7.5M3 12h18" />
+              </svg>
+              View Live Alerts
+            </a>
+            <a href="{% url 'safeplaces' %}" class="inline-flex items-center gap-2 rounded-2xl px-6 py-3 font-semibold border border-white/15 hover:border-white/30 hover:bg-white/5">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-5 h-5">
+                <path d="M11.47 3.84a.75.75 0 0 1 1.06 0l7.59 7.59a.75.75 0 0 1-.53 1.28H4.47a.75.75 0 0 1-.53-1.28l7.53-7.59Z" /><path d="M12 6.75v12.5a.75.75 0 0 1-1.06.67l-5-2.5a.75.75 0 0 1-.44-.67V10.5h11v6.25a.75.75 0 0 1-.44.67l-5 2.5A.75.75 0 0 1 12 19.25Z"/>
+              </svg>
+              Find Safe Places
+            </a>
+          </div>
+
+          <!-- Quick stats -->
+          <div class="mt-10 grid grid-cols-3 gap-4 max-w-xl">
+            <div class="card rounded-2xl border border-white/10 bg-white/5 p-4 text-center">
+              <p class="text-3xl font-black">8</p>
+              <p class="text-xs text-slate-300">Setu Districts</p>
+            </div>
+            <div class="card rounded-2xl border border-white/10 bg-white/5 p-4 text-center">
+              <p class="text-3xl font-black">120+</p>
+              <p class="text-xs text-slate-300">Shelters Mapped</p>
+            </div>
+            <div class="card rounded-2xl border border-white/10 bg-white/5 p-4 text-center">
+              <p class="text-3xl font-black">24×7</p>
+              <p class="text-xs text-slate-300">Live Monitoring</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right: Alert Preview Card -->
+        <div class="relative">
+          <div class="absolute -inset-1 rounded-3xl bg-gradient-to-tr from-ocean-500/20 via-white/10 to-transparent blur-2xl"></div>
+          <div class="relative card rounded-3xl border border-white/10 bg-slate-900/40 backdrop-blur p-6 shadow-glow">
+            <div class="flex items-center justify-between">
+              <h3 class="text-lg font-bold">Latest Alerts</h3>
+              <span class="px-3 py-1 text-xs rounded-full bg-green-500/20 border border-green-400/30 text-green-200">Safe</span>
+            </div>
+            <ul class="mt-4 space-y-3 text-sm">
+              <li class="flex items-start gap-3 group">
+                <span class="mt-1 h-2 w-2 rounded-full bg-green-400 group-hover:scale-125 transition"></span>
+                <div class="flex-1">
+                  <p class="font-medium group-hover:text-white/90">Porbandar • No flood risk. Winds moderate.</p>
+                  <p class="text-slate-400">Updated 5 mins ago</p>
+                </div>
+                <a href="{% url 'alerts' %}" class="opacity-70 group-hover:opacity-100">→</a>
+              </li>
+              <li class="flex items-start gap-3 group">
+                <span class="mt-1 h-2 w-2 rounded-full bg-yellow-300 group-hover:scale-125 transition"></span>
+                <div class="flex-1">
+                  <p class="font-medium group-hover:text-white/90">Dwarka • High tide at 18:20. Use caution.</p>
+                  <p class="text-slate-400">Updated 12 mins ago</p>
+                </div>
+                <a href="{% url 'alerts' %}" class="opacity-70 group-hover:opacity-100">→</a>
+              </li>
+              <li class="flex items-start gap-3 group">
+                <span class="mt-1 h-2 w-2 rounded-full bg-sky-300 group-hover:scale-125 transition"></span>
+                <div class="flex-1">
+                  <p class="font-medium group-hover:text-white/90">Veraval • Clear weather window for fishing.</p>
+                  <p class="text-slate-400">Updated 24 mins ago</p>
+                </div>
+                <a href="{% url 'alerts' %}" class="opacity-70 group-hover:opacity-100">→</a>
+              </li>
+            </ul>
+            <a href="{% url 'alerts' %}" class="mt-6 inline-flex items-center gap-2 text-sm text-ocean-200 hover:text-ocean-100">Open full dashboard →</a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Decorative waves -->
+    <svg class="absolute bottom-0 left-0 right-0" height="120" viewBox="0 0 1200 120" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M0 0L50 10.5C100 21 200 42 300 52.5C400 63 500 63 600 47.3C700 31.7 800 0 900 0C1000 0 1100 31.7 1150 47.3L1200 63V120H0V0Z" fill="rgba(255,255,255,0.05)"/>
+    </svg>
+  </section>
+
+  <!-- Feature cards -->
+  <section class="mx-auto max-w-7xl px-4 py-16">
+    <h2 class="text-2xl md:text-3xl font-extrabold tracking-tight mb-8">Everything you need in an emergency</h2>
+    <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
+      <!-- Card 1 -->
+      <a href="{% url 'alerts' %}" class="card group rounded-2xl border border-white/10 bg-white/5 p-6 block">
+        <div class="h-12 w-12 rounded-xl bg-gradient-to-br from-ocean-300 to-ocean-600 flex items-center justify-center mb-4">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" />
+          </svg>
+        </div>
+        <h3 class="font-bold mb-2">Flood & Weather Alerts</h3>
+        <p class="text-sm text-slate-300">Live warnings from weather & tide APIs, plus SMS notifications.</p>
+        <span class="mt-4 inline-block text-ocean-200 group-hover:translate-x-1 transition">Open →</span>
+      </a>
+
+      <!-- Card 2 -->
+      <a href="{% url 'safeplaces' %}" class="card group rounded-2xl border border-white/10 bg-white/5 p-6 block">
+        <div class="h-12 w-12 rounded-xl bg-gradient-to-br from-ocean-300 to-ocean-600 flex items-center justify-center mb-4">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-6 h-6"><path d="M11.47 3.84a.75.75 0 0 1 1.06 0l7.53 7.53a.75.75 0 0 1-1.06 1.06l-.69-.69V19.5a.75.75 0 0 1-.75.75h-3.75a.75.75 0 0 1-.75-.75v-3h-3v3a.75.75 0 0 1-.75.75H5.25a.75.75 0 0 1-.75-.75v-7.76l-.69.69a.75.75 0 1 1-1.06-1.06l7.53-7.53Z"/></svg>
+        </div>
+        <h3 class="font-bold mb-2">Safe Place Finder</h3>
+        <p class="text-sm text-slate-300">Shelters, hospitals & police stations with directions.</p>
+        <span class="mt-4 inline-block text-ocean-200 group-hover:translate-x-1 transition">Open →</span>
+      </a>
+
+      <!-- Card 3 -->
+      <a href="{% url 'fisheries' %}" class="card group rounded-2xl border border-white/10 bg-white/5 p-6 block">
+        <div class="h-12 w-12 rounded-xl bg-gradient-to-br from-ocean-300 to-ocean-600 flex items-center justify-center mb-4">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 7.5S6 3 12 3s8.25 4.5 8.25 4.5S18 12 12 12 3.75 7.5 3.75 7.5Zm0 0V21m16.5-13.5V21"/></svg>
+        </div>
+        <h3 class="font-bold mb-2">Fishery Advisory</h3>
+        <p class="text-sm text-slate-300">Wind, tide & wave windows summarized for fishers.</p>
+        <span class="mt-4 inline-block text-ocean-200 group-hover:translate-x-1 transition">Open →</span>
+      </a>
+
+      <!-- Card 4 -->
+      <a href="{% url 'pollution' %}" class="card group rounded-2xl border border-white/10 bg-white/5 p-6 block">
+        <div class="h-12 w-12 rounded-xl bg-gradient-to-br from-ocean-300 to-ocean-600 flex items-center justify-center mb-4">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-6 h-6"><path d="M4.5 3.75A.75.75 0 0 0 3.75 4.5v15a.75.75 0 0 0 .75.75h15a.75.75 0 0 0 .75-.75v-15a.75.75 0 0 0-.75-.75h-15Zm3 3.75h9v3h-9v-3Zm0 4.5h9v6h-9v-6Z"/></svg>
+        </div>
+        <h3 class="font-bold mb-2">Report Pollution</h3>
+        <p class="text-sm text-slate-300">Upload photos, add a location, and notify authorities.</p>
+        <span class="mt-4 inline-block text-ocean-200 group-hover:translate-x-1 transition">Open →</span>
+      </a>
+    </div>
+  </section>
+
+  <!-- Subscribe / Twilio CTA (placeholder) -->
+  <section id="subscribe" class="mx-auto max-w-7xl px-4 pb-16">
+    <div class="rounded-3xl border border-white/10 bg-gradient-to-r from-white/5 to-white/10 p-6 md:p-8 card">
+      <div class="md:flex items-center justify-between gap-6">
+        <div class="max-w-2xl">
+          <h3 class="text-xl font-bold">Get instant SMS alerts</h3>
+          <p class="text-slate-300 text-sm mt-1">Subscribe with your phone number to receive automated flood warnings (powered by Twilio).</p>
+        </div>
+        <form id="smsForm" class="mt-4 md:mt-0 flex w-full md:w-auto gap-3">
+          <input type="tel" id="phoneNumber" placeholder="Enter mobile number" 
+                 class="flex-1 md:w-80 rounded-xl px-4 py-3 bg-slate-900/60 border border-white/10 focus:outline-none focus:ring-2 focus:ring-ocean-400" 
+                 required />
+          <button type="submit" class="btn-shine rounded-xl px-5 py-3 font-semibold bg-gradient-to-br from-ocean-400 to-ocean-600 shadow-glow">Subscribe</button>
+        </form>
+      </div>
+      
+      <!-- Status message -->
+      <div id="smsStatus" class="mt-4 hidden">
+        <div id="smsSuccess" class="hidden p-3 rounded-xl bg-green-500/20 border border-green-400/30 text-green-200 text-sm"></div>
+        <div id="smsError" class="hidden p-3 rounded-xl bg-red-500/20 border border-red-400/30 text-red-200 text-sm"></div>
+      </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="border-t border-white/10 bg-slate-950/60 backdrop-blur">
+    <div class="mx-auto max-w-7xl px-4 py-10 grid md:grid-cols-3 gap-8 text-sm">
+      <div>
+        <p class="font-extrabold text-lg">Samudra Setu</p>
+        <p class="text-slate-400 mt-2">Hackathon Prototype · Gujarat, India</p>
+      </div>
+      <div>
+        <p class="font-bold mb-2">Quick Links</p>
+        <ul class="space-y-1 text-slate-300">
+<li><a class="hover:underline" href="{% url 'alerts' %}">Alerts</a></li>
+<li><a class="hover:underline" href="{% url 'safeplaces' %}">Safe Places</a></li>
+<li><a class="hover:underline" href="{% url 'fisheries' %}">Fisheries</a></li>
+<li><a class="hover:underline" href="{% url 'pollution' %}">Report Pollution</a></li>
+<li><a class="hover:underline" href="{% url 'adminfrontend' %}">Admin</a></li>
+
+        </ul>
+      </div>
+      <div>
+        <p class="font-bold mb-2">Contact</p>
+        <p class="text-slate-300">samudra-setu@hackathon.dev</p>
+      </div>
+    </div>
+    <div class="text-center text-xs text-slate-500 pb-8">© 2025 SamudraSetu Safety Gujarat</div>
+  </footer>
+
+  <script>
+    const menuBtn = document.getElementById('menuBtn');
+    const mobileMenu = document.getElementById('mobileMenu');
+    menuBtn?.addEventListener('click', () => mobileMenu.classList.toggle('hidden'));
+
+    // SMS Subscription Form
+    const smsForm = document.getElementById('smsForm');
+    const phoneNumber = document.getElementById('phoneNumber');
+    const smsStatus = document.getElementById('smsStatus');
+    const smsSuccess = document.getElementById('smsSuccess');
+    const smsError = document.getElementById('smsError');
+
+    smsForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      const phone = phoneNumber.value.trim();
+      if (!phone) return;
+
+      try {
+        const response = await fetch('/api/subscribe-sms/', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ phone_number: phone })
+        });
+
+        const data = await response.json();
+        
+        if (data.success) {
+          showSMSStatus(data.message, 'success');
+          phoneNumber.value = '';
+        } else {
+          showSMSStatus(data.error, 'error');
+        }
+      } catch (error) {
+        showSMSStatus('Network error. Please try again.', 'error');
+      }
+    });
+
+    function showSMSStatus(message, type) {
+      smsStatus.classList.remove('hidden');
+      smsSuccess.classList.add('hidden');
+      smsError.classList.add('hidden');
+      
+      if (type === 'success') {
+        smsSuccess.textContent = message;
+        smsSuccess.classList.remove('hidden');
+      } else {
+        smsError.textContent = message;
+        smsError.classList.remove('hidden');
+      }
+      
+      // Hide after 5 seconds
+      setTimeout(() => {
+        smsStatus.classList.add('hidden');
+      }, 5000);
+    }
+
+    // Real-time alerts update (optional)
+    async function updateAlerts() {
+      try {
+        const response = await fetch('/api/alerts/');
+        const data = await response.json();
+        
+        // Update the alerts display if needed
+        console.log('Latest alerts:', data.alerts);
+      } catch (error) {
+        console.log('Failed to fetch alerts:', error);
+      }
+    }
+
+    // Update alerts every 30 seconds
+    setInterval(updateAlerts, 30000);
+  </script>
+</body>
+</html>

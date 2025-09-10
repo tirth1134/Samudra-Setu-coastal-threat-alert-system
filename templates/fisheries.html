@@ -1,0 +1,325 @@
+{% load static %}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Samudra Setu Gujarat — Stay Safe on the Shore</title>
+  <meta name="description" content="Real-time flood alerts, safe place finder, fishery advisories, and pollution reporting for Gujarat's coastline." />
+  
+  <!-- TailwindCSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            ocean: {
+              50: '#f0f8ff',
+              100: '#e0f2ff',
+              200: '#bae6fd',
+              300: '#7dd3fc',
+              400: '#38bdf8',
+              500: '#0ea5e9',
+              600: '#0284c7',
+              700: '#0369a1',
+              800: '#075985',
+              900: '#0c4a6e',
+            }
+          },
+          boxShadow: {
+            glow: '0 0 0 2px rgba(255,255,255,0.06), 0 10px 30px rgba(2,132,199,0.35)'
+          },
+          backgroundImage: {
+            'ocean-grad': 'radial-gradient(1200px 600px at 10% 0%, rgba(56,189,248,0.25), transparent 50%), radial-gradient(900px 500px at 90% -10%, rgba(14,165,233,0.25), transparent 55%), linear-gradient(180deg, #031A2B 0%, #061E30 30%, #07263C 100%)',
+            'grid': 'linear-gradient(to right, rgba(255,255,255,0.06) 1px, transparent 1px), linear-gradient(to bottom, rgba(255,255,255,0.06) 1px, transparent 1px)'
+          }
+        }
+      }
+    };
+  </script>
+
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+
+  <style>
+    #map { height: 52vh; min-height: 380px; border-radius: 1rem; }
+    .card { transition: transform .28s ease, box-shadow .28s ease; }
+    .card:hover { transform: translateY(-6px); box-shadow: 0 18px 36px rgba(2,132,199,0.12); }
+    .pill { display:inline-flex; align-items:center; gap:.5rem; padding:.25rem .6rem; border-radius:999px; font-weight:600; font-size:.85rem }
+    .safe { background: rgba(34,197,94,0.12); color: #86efac; border: 1px solid rgba(34,197,94,0.16) }
+    .caution { background: rgba(245,158,11,0.08); color:#f59e0b; border:1px solid rgba(245,158,11,0.12) }
+    .warning { background: rgba(239,68,68,0.08); color:#ef4444; border:1px solid rgba(239,68,68,0.12) }
+    .danger { background: rgba(124,58,237,0.06); color:#7c3aed; border:1px solid rgba(124,58,237,0.12) }
+    .small { font-size: 0.85rem; }
+    .stat { font-weight: 800; font-size: 1.35rem; }
+    .muted { color: rgba(255,255,255,0.7); }
+  </style>
+</head>
+<body class="min-h-screen bg-gradient-to-b from-slate-900 via-slate-900/90 to-slate-950 text-slate-100">
+
+  </head>
+<body class="min-h-screen text-slate-100 bg-ocean-grad relative">
+  <!-- Decorative background grid -->
+  <div class="grid-overlay bg-grid absolute inset-0 pointer-events-none"></div>
+
+  <!-- Navbar -->
+  <header class="relative z-40">
+    <nav class="mx-auto max-w-7xl px-4 py-5 flex items-center justify-between">
+      <a href="{% url 'index' %}" class="flex items-center gap-3 group">
+        <img src="{% static 'images/White.png' %}"
+            alt="SamudraSetu Logo" 
+            class="w-auto h-20 object-contain">
+      </a>
+      <button id="menuBtn" class="md:hidden inline-flex items-center justify-center rounded-xl border border-white/10 px-3 py-2 hover:bg-white/5">
+        <span class="sr-only">Open menu</span>
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
+      </button>
+
+      <ul id="menu" class="hidden md:flex items-center gap-8 text-sm">
+        <li><a class="link-fancy hover:text-white/90" href="{% url 'alerts' %}">Alerts</a></li>
+        <li><a class="link-fancy hover:text-white/90" href="{% url 'safeplaces' %}">Safe Places</a></li>
+        <li><a class="link-fancy hover:text-white/90" href="{% url 'fisheries' %}">Fisheries</a></li>
+        <li><a class="link-fancy hover:text-white/90" href="{% url 'pollution' %}">Report Pollution</a></li>
+      </ul>
+
+      <div class="hidden md:flex items-center gap-3">
+        <a href="#subscribe" class="btn-shine inline-flex items-center gap-2 rounded-xl bg-white/10 hover:bg-white/15 px-4 py-2 border border-white/15 shadow-glow transition">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-5 h-5"><path d="M2.25 6.75A2.25 2.25 0 0 1 4.5 4.5h15a2.25 2.25 0 0 1 2.25 2.25v10.5A2.25 2.25 0 0 1 19.5 19.5h-15A2.25 2.25 0 0 1 2.25 17.25V6.75Zm1.5 0 8.25 5.25L20.25 6.75m-16.5 9.75 4.87-3.105M20.25 16.5l-4.87-3.105"/></svg>
+          <span class="font-semibold">Get SMS Alerts</span>
+        </a>
+      </div>
+    </nav>
+    <!-- Mobile menu -->
+    <div id="mobileMenu" class="md:hidden hidden mx-4 mb-4 rounded-2xl border border-white/10 bg-white/5 backdrop-blur p-4">
+      <ul class="space-y-3">
+        <li><a class="block link-fancy py-2" href="{% url 'alerts' %}">Alerts</a></li>
+        <li><a class="block link-fancy py-2" href="{% url 'safeplaces' %}">Safe Places</a></li>
+        <li><a class="block link-fancy py-2" href="{% url 'fisheries' %}">Fisheries</a></li>
+        <li><a class="block link-fancy py-2" href="{% url 'pollution' %}">Report Pollution</a></li>
+      </ul>
+    </div>
+  </header>
+
+  <!-- Main -->
+  <main class="max-w-7xl mx-auto px-4 py-10 grid lg:grid-cols-3 gap-8">
+
+    <!-- Left: Controls & Harbor list -->
+    <section class="lg:col-span-1">
+      <div class="card rounded-2xl p-5 bg-slate-900/40 border border-white/6">
+        <h2 class="text-lg font-bold">Harbors & Safety</h2>
+        <p class="text-slate-400 text-sm mt-1">Live conditions for major fishing harbors. Click a harbor to view details and notify fishermen.</p>
+
+        <div class="mt-4">
+          <label class="text-xs text-slate-400">Auto-refresh</label>
+          <div class="mt-2 flex items-center gap-3">
+            <input id="autoRefresh" type="checkbox" checked class="w-5 h-5" />
+            <span class="text-sm muted">Every <span id="intervalLabel">5</span> mins</span>
+          </div>
+        </div>
+
+        <div class="mt-4">
+          <h3 class="text-sm font-semibold">Harbors</h3>
+          <div id="harborList" class="mt-3 space-y-3 max-h-[56vh] overflow-auto pr-2">
+            <!-- populated dynamically -->
+          </div>
+        </div>
+      </div>
+
+      <!-- Safety legend -->
+      <div class="mt-6 card rounded-2xl p-4 bg-slate-900/30 border border-white/6">
+        <h3 class="font-semibold">Legend</h3>
+        <div class="mt-3 flex flex-col gap-2 text-sm">
+          <div class="flex items-center gap-3"><span class="pill safe">SAFE</span> <span class="muted">Good conditions</span></div>
+          <div class="flex items-center gap-3"><span class="pill caution">CAUTION</span> <span class="muted">Exercise caution</span></div>
+          <div class="flex items-center gap-3"><span class="pill warning">WARNING</span> <span class="muted">High risk</span></div>
+          <div class="flex items-center gap-3"><span class="pill danger">DANGER</span> <span class="muted">Severe — avoid going out</span></div>
+        </div>
+      </div>
+      <br>
+      <div class="rounded-xl p-4 bg-slate-900/30 border border-white/6">
+        <p>🌡️ Temperature: <span id="selTemp">—</span></p>
+        <p>💨 Wind: <span id="selWind">—</span></p>
+        <p>🌧️ Rain: <span id="selRain">—</span></p>
+        <p>Status: <span id="selectedStatus" class="pill safe"></span></p>
+      </div>
+    </section>
+
+    <!-- Middle & Right: Map and advisory details -->
+    <section class="lg:col-span-2">
+      <div class="rounded-2xl p-4 bg-slate-900/40 border border-white/6 card">
+        <div class="flex items-start justify-between gap-4 mb-4">
+          <div>
+            <h3 class="text-lg font-bold">Sea Conditions Map</h3>
+            <p class="text-slate-400 text-sm">Markers indicate recommended safety for small fishing vessels.</p>
+          </div>
+          <div class="text-right">
+            <p class="text-sm muted">Updated: <span id="lastUpdated">—</span></p>
+            <p class="text-sm muted">Auto: <span id="autoState">On</span></p>
+          </div>
+        </div>
+
+        <div id="map" class="rounded-md overflow-hidden"></div>
+
+        <!-- Advisory & info -->
+        <br>
+          <div class="rounded-xl p-4 bg-slate-900/30 border border-white/6">
+            <p class="small text-slate-400">Tide & Advisory</p>
+            <p class="mt-2 small"><strong>Tide:</strong> <span id="selTide">—</span> m</p>
+            <p class="mt-1 small"><strong>Next High:</strong> <span id="selHigh">—</span></p>
+            <div class="mt-3 flex gap-2">
+              <button id="notifyBtn" class="rounded-xl px-3 py-2 bg-ocean-600 font-semibold">Notify Fishermen</button>
+              <button id="detailsBtn" class="rounded-xl px-3 py-2 border border-white/6">Open Details</button>
+            </div>
+            <p id="notifyStatus" class="text-xs muted mt-2"></p>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+<!-- Subscribe / Twilio CTA (placeholder) -->
+  <section id="subscribe" class="mx-auto max-w-7xl px-4 pb-16">
+    <div class="rounded-3xl border border-white/10 bg-gradient-to-r from-white/5 to-white/10 p-6 md:p-8 card">
+      <div class="md:flex items-center justify-between gap-6">
+        <div class="max-w-2xl">
+          <h3 class="text-xl font-bold">Get instant SMS alerts</h3>
+          <p class="text-slate-300 text-sm mt-1">Subscribe with your phone number to receive automated flood warnings (powered by Twilio).</p>
+        </div>
+        <form id="smsForm" class="mt-4 md:mt-0 flex w-full md:w-auto gap-3">
+          <input type="tel" id="phoneNumber" placeholder="Enter mobile number" 
+                 class="flex-1 md:w-80 rounded-xl px-4 py-3 bg-slate-900/60 border border-white/10 focus:outline-none focus:ring-2 focus:ring-ocean-400" 
+                 required />
+          <button type="submit" class="btn-shine rounded-xl px-5 py-3 font-semibold bg-gradient-to-br from-ocean-400 to-ocean-600 shadow-glow">Subscribe</button>
+        </form>
+      </div>
+      
+      <!-- Status message -->
+      <div id="smsStatus" class="mt-4 hidden">
+        <div id="smsSuccess" class="hidden p-3 rounded-xl bg-green-500/20 border border-green-400/30 text-green-200 text-sm"></div>
+        <div id="smsError" class="hidden p-3 rounded-xl bg-red-500/20 border border-red-400/30 text-red-200 text-sm"></div>
+      </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="border-t border-white/10 bg-slate-950/60 backdrop-blur">
+    <div class="mx-auto max-w-7xl px-4 py-10 grid md:grid-cols-3 gap-8 text-sm">
+      <div>
+        <p class="font-extrabold text-lg">Samudra Setu</p>
+        <p class="text-slate-400 mt-2">Hackathon Prototype · Gujarat, India</p>
+      </div>
+      <div>
+        <p class="font-bold mb-2">Quick Links</p>
+        <ul class="space-y-1 text-slate-300">
+          <li><a class="hover:underline" href="{% url 'alerts' %}">Alerts</a></li>
+          <li><a class="hover:underline" href="{% url 'safeplaces' %}">Safe Places</a></li>
+          <li><a class="hover:underline" href="{% url 'fisheries' %}">Fisheries</a></li>
+          <li><a class="hover:underline" href="{% url 'pollution' %}">Report Pollution</a></li>
+          <li><a class="hover:underline" href="{% url 'adminfrontend' %}">Admin</a></li>
+        </ul>
+      </div>
+      <div>
+        <p class="font-bold mb-2">Contact</p>
+        <p class="text-slate-300">samudra-setu@hackathon.dev</p>
+      </div>
+    </div>
+    <div class="text-center text-xs text-slate-500 pb-8">©️ 2025 SamudraSetu Safety Gujarat</div>
+  </footer>
+  
+<!-- Leaflet JS -->
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+
+<script>
+
+async function getWeather(lat, lon) {
+  try {
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true`;
+    const res = await fetch(url);
+    const data = await res.json();
+    const c = data.current_weather;
+
+    // ---------- Map setup ----------
+    const map = L.map('map').setView([22.5, 70.5], 7);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '©️ OpenStreetMap contributors' }).addTo(map);
+
+    // Gujarat polygon (approx bounding box, replace with GeoJSON for exact boundary)
+    const gujaratBounds = [
+      [20.5, 68.0],
+      [24.7, 68.0],
+      [24.7, 74.5],
+      [20.5, 74.5]
+    ];
+    L.polygon(gujaratBounds, { color: "blue", weight: 2, fillOpacity: 0.05 }).addTo(map);
+
+    // Example marker: Porbandar
+    L.marker([21.6417, 69.6293]).addTo(map).bindPopup("Porbandar - Coastal Safety Point");
+
+    // Update weather spans
+    document.getElementById("selTemp").innerText = `${c.temperature} °C`;
+    document.getElementById("selWind").innerText = `${c.windspeed} m/s`;
+    document.getElementById("selRain").innerText = `${c.precipitation ?? 0} mm`;
+
+    // Update status pill dynamically
+    const statusEl = document.getElementById("selectedStatus");
+    
+    if (c.temperature >= 16 && c.temperature <= 28) {
+      statusEl.innerText = "SAFE";
+      statusEl.className = "pill safe";
+    } 
+    else if (c.temperature >= 29 && c.temperature <= 37) {
+      statusEl.innerText = "CAUTION";
+      statusEl.className = "pill caution";
+    } 
+    else if (c.temperature > 37) {
+      statusEl.innerText = "WARNING";
+      statusEl.className = "pill warning";
+    } 
+    else if (c.temperature < 15) {
+      statusEl.innerText = "DANGER";
+      statusEl.className = "pill danger";
+    }
+
+    // Last updated timestamp
+    document.getElementById("lastUpdated").innerText = new Date().toLocaleTimeString();
+
+  } catch (e) {
+    console.error(e);
+    document.getElementById("selectedStatus").innerText = "⚠️ Error fetching weather";
+    document.getElementById("lastUpdated").innerText = "—";
+  }
+}
+
+function detectLocation() {
+  const defaultLat = 21;      // Gujarat coast fallback
+  const defaultLon = 70.25;
+
+  if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(
+      pos => {
+        const lat = pos.coords.latitude;
+        const lon = pos.coords.longitude;
+        getWeather(lat, lon);
+        setInterval(() => getWeather(lat, lon), 300000); // refresh every 5 mins
+      },
+      err => {
+        getWeather(defaultLat, defaultLon);
+        setInterval(() => getWeather(defaultLat, defaultLon), 300000);
+      }
+    );
+  } else {
+    getWeather(defaultLat, defaultLon);
+    setInterval(() => getWeather(defaultLat, defaultLon), 300000);
+  }
+}
+
+// Run on page load
+window.onload = detectLocation;
+
+// Manual refresh button
+document.getElementById("refreshBtn")?.addEventListener("click", () => detectLocation());
+</script>
+
+</body>
+</html>
