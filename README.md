@@ -81,6 +81,10 @@ python manage.py createsuperuser
 ```bash
 python manage.py runserver
 ```
+<img width="1912" height="882" alt="Screenshot 2025-09-19 111657" src="https://github.com/user-attachments/assets/551637c1-e7c7-4b78-b3ae-0d1e937d46fa" />
+<img width="1915" height="872" alt="Screenshot 2025-09-19 111853" src="https://github.com/user-attachments/assets/df056f9c-177d-4f93-a023-7361b839de36" />
+<img width="1912" height="883" alt="Screenshot 2025-09-19 111932" src="https://github.com/user-attachments/assets/59ab58d3-4d18-4b6b-9e4b-4d5daa38fe83" />
+<img width="1916" height="952" alt="Screenshot 2025-09-19 111632" src="https://github.com/user-attachments/assets/4acfae40-ee8c-49b8-a30b-9356cae9e395" />
 
 The application will be available at: `http://127.0.0.1:8000/`
 
